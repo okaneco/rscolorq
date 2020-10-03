@@ -1,0 +1,59 @@
+[package]
+name = "rscolorq"
+version = "0.1.0"
+authors = ["okaneco <47607823+okaneco@users.noreply.github.com>"]
+edition = "2018"
+exclude = ["test", "gfx"]
+description = "Spatial color quantization, a Rust port of `scolorq`."
+homepage = "https://github.com/okaneco/rscolorq"
+repository = "https://github.com/okaneco/rscolorq"
+readme = "README.md"
+keywords = ["dither", "quantization", "palette", "spatial", "halftone"]
+categories = ["graphics", "multimedia::images"]
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["app"]
+
+app = [
+    "image",
+    "palette_color",
+    "structopt",
+]
+
+# Enables Lab color quantization
+palette_color = ["palette"]
+
+[dependencies.image]
+version = "0.23"
+default-features = false
+features = ["jpeg", "png"]
+optional = true
+
+[dependencies.palette]
+version = "0.5"
+default-features = false
+features = ["std"]
+optional = true
+
+[dependencies.rand]
+version = "0.7"
+default-features = false
+features = ["std"]
+
+[dependencies.rand_pcg]
+version = "0.2"
+default-features = false
+
+[dependencies.structopt]
+version = "0.3"
+default-features = false
+optional = true
+
+[profile.release]
+lto = "thin"
+
+[package.metadata.docs.rs]
+no-default-features = true
+features = ["palette_color"]
+targets = []
