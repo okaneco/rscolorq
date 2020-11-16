@@ -73,8 +73,8 @@ pub fn save_image(
     let w = std::io::BufWriter::new(std::fs::File::create(output)?);
     let encoder = image::png::PngEncoder::new_with_quality(
         w,
-        image::png::CompressionType::Best,
-        image::png::FilterType::NoFilter,
+        image::codecs::png::CompressionType::Best,
+        image::codecs::png::FilterType::NoFilter,
     );
 
     // Clean up if file is created but there's a problem writing to it
