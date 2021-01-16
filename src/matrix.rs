@@ -46,12 +46,12 @@ impl<T: Clone + Default> Matrix2d<T> {
 
     /// Returns a reference to the indexed element.
     pub fn get(&self, i: usize, j: usize) -> Option<&T> {
-        self.data.get(j * self.width + i)
+        self.data.get(i.wrapping_add(j.wrapping_mul(self.width)))
     }
 
     /// Returns a mutable reference to the indexed element.
     pub fn get_mut(&mut self, i: usize, j: usize) -> Option<&mut T> {
-        self.data.get_mut(j * self.width + i)
+        self.data.get_mut(i.wrapping_add(j.wrapping_mul(self.width)))
     }
 
     /// Consume the `Matrix2d` and return the underlying Vec.
