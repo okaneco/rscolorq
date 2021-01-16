@@ -16,8 +16,9 @@ impl SpatialQuant for Lab<D65, f64> {
                             / dithering_level.powi(2))
                         .exp();
                         sum += val;
-                        *filter_weights.get_mut(i as usize, j as usize).unwrap() =
-                            Lab::new(val, val, val);
+                        *filter_weights
+                            .get_mut(i as usize, j as usize)
+                            .expect("filter weights index in range") = Lab::new(val, val, val);
                     }
                 }
                 filter_weights.iter_mut().for_each(|fw| *fw /= sum);
@@ -31,8 +32,9 @@ impl SpatialQuant for Lab<D65, f64> {
                             / dithering_level.powi(2))
                         .exp();
                         sum += val;
-                        *filter_weights.get_mut(i as usize, j as usize).unwrap() =
-                            Self::new(val, val, val);
+                        *filter_weights
+                            .get_mut(i as usize, j as usize)
+                            .expect("filter weights index in range") = Self::new(val, val, val);
                     }
                 }
                 filter_weights.iter_mut().for_each(|fw| *fw /= sum);
@@ -90,7 +92,8 @@ impl SpatialQuant for Lab<D65, f64> {
         // Reflect s above the diagonal
         for v in 0..s.width() {
             for alpha in 0..v {
-                *s.get_mut(v, alpha).unwrap() = *s.get(alpha, v).unwrap();
+                *s.get_mut(v, alpha).ok_or("Could not reflect s")? =
+                    *s.get(alpha, v).ok_or("Could not reflect s")?;
             }
         }
 
@@ -98,8 +101,12 @@ impl SpatialQuant for Lab<D65, f64> {
         for (v, r_item) in r.iter_mut().enumerate().take(palette.len()) {
             for i_y in 0..coarse_variables.height() {
                 for i_x in 0..coarse_variables.width() {
-                    *r_item +=
-                        *a.get(i_x, i_y).unwrap() * *coarse_variables.get(i_x, i_y, v).unwrap();
+                    *r_item += *a
+                        .get(i_x, i_y)
+                        .ok_or("Could not access a-matrix in refine palette")?
+                        * *coarse_variables
+                            .get(i_x, i_y, v)
+                            .ok_or("Could not access coarse variables to refine palette")?;
                 }
             }
         }

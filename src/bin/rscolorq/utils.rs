@@ -119,7 +119,7 @@ pub fn save_palette(
                     .min(len as f32))
                 .round() as usize,
             )
-            .unwrap();
+            .ok_or("Could not retrieve color for saving palette")?;
         *pixel = image::Rgb(color);
     }
 
@@ -156,7 +156,7 @@ pub fn save_palette_lab(
                     .min(len as f32))
                 .round() as usize,
             )
-            .unwrap();
+            .ok_or("Could not retrieve color for saving palette")?;
         *pixel = image::Rgb([color.red, color.green, color.blue]);
     }
 

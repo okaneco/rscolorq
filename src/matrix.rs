@@ -46,12 +46,17 @@ impl<T: Clone + Default> Matrix2d<T> {
 
     /// Returns a reference to the indexed element.
     pub fn get(&self, i: usize, j: usize) -> Option<&T> {
-        self.data.get(i.wrapping_add(j.wrapping_mul(self.width)))
+        // j * self.width + i
+        j.checked_mul(self.width)
+            .map_or_else(|| None, |a| a.checked_add(i))
+            .map_or_else(|| None, |index| self.data.get(index))
     }
 
     /// Returns a mutable reference to the indexed element.
     pub fn get_mut(&mut self, i: usize, j: usize) -> Option<&mut T> {
-        self.data.get_mut(i.wrapping_add(j.wrapping_mul(self.width)))
+        j.checked_mul(self.width)
+            .map_or_else(|| None, |a| a.checked_add(i))
+            .map_or_else(|| None, move |index| self.data.get_mut(index))
     }
 
     /// Consume the `Matrix2d` and return the underlying Vec.
@@ -76,7 +81,7 @@ impl<T: Clone + Default + Copy + core::ops::MulAssign<T>> Matrix2d<T> {
         for i in 0..self.width {
             *self
                 .get_mut(i, row)
-                .ok_or_else(|| "Could not multiply row by scalar")? *= factor;
+                .ok_or("Could not multiply row by scalar")? *= factor;
         }
 
         Ok(())
@@ -97,11 +102,11 @@ where
         for i in 0..self.width {
             let from_item = *self
                 .get(i, from_row)
-                .ok_or_else(|| "Index out of range in add_row_multiply")?
+                .ok_or("Index out of range in add_row_multiply")?
                 * factor;
             *self
                 .get_mut(i, to_row)
-                .ok_or_else(|| "Index out of range in add_row_multiply")? += from_item;
+                .ok_or("Index out of range in add_row_multiply")? += from_item;
         }
 
         Ok(())
@@ -136,24 +141,19 @@ where
         for i in 0..a.width {
             result.multiply_row_by_scalar(
                 i,
-                T::inverse(a.get(i, i).ok_or_else(|| "Could not reduce matrix")?),
+                T::inverse(a.get(i, i).ok_or("Could not reduce matrix")?),
             )?;
-            a.multiply_row_by_scalar(
-                i,
-                T::inverse(a.get(i, i).ok_or_else(|| "Could not reduce matrix")?),
-            )?;
+            a.multiply_row_by_scalar(i, T::inverse(a.get(i, i).ok_or("Could not reduce matrix")?))?;
             for j in (i + 1)..a.height {
                 result.add_row_multiple(
                     i,
                     j,
-                    -*a.get(i, j)
-                        .ok_or_else(|| "Could not reduce matrix, inner loop")?,
+                    -*a.get(i, j).ok_or("Could not reduce matrix, inner loop")?,
                 )?;
                 a.add_row_multiple(
                     i,
                     j,
-                    -*a.get(i, j)
-                        .ok_or_else(|| "Could not reduce matrix, inner loop")?,
+                    -*a.get(i, j).ok_or("Could not reduce matrix, inner loop")?,
                 )?;
             }
         }
@@ -165,14 +165,12 @@ where
                 result.add_row_multiple(
                     i,
                     j as usize,
-                    -*a.get(i, j as usize)
-                        .ok_or_else(|| "Could not back substitute")?,
+                    -*a.get(i, j as usize).ok_or("Could not back substitute")?,
                 )?;
                 a.add_row_multiple(
                     i,
                     j as usize,
-                    -*a.get(i, j as usize)
-                        .ok_or_else(|| "Could not back substitute")?,
+                    -*a.get(i, j as usize).ok_or("Could not back substitute")?,
                 )?;
                 j -= 1;
             }
@@ -196,7 +194,10 @@ where
         for row in 0..self.height() {
             let mut sum = T::default();
             for col in 0..self.width() {
-                sum += *self.get(col, row).unwrap() * *other.get(col).unwrap();
+                sum += *self
+                    .get(col, row)
+                    .expect("valid access for row and col in Matrix2d")
+                    * *other.get(col).expect("index in range for other");
             }
             result.push(sum);
         }
@@ -275,14 +276,35 @@ impl<T: Clone + Default> Matrix3d<T> {
 
     /// Returns a reference to the indexed element.
     pub fn get(&self, i: usize, j: usize, k: usize) -> Option<&T> {
-        self.data
-            .get(j * self.width * self.depth + i * self.depth + k)
+        // The base formula for access is:
+        //     j * self.width * self.depth + i * self.depth + k
+        //     ^---------(j_term)--------^   ^----(i_term)----^
+        j.checked_mul(self.width)
+            .map_or_else(|| None, |a| a.checked_mul(self.depth))
+            .map_or_else(
+                || None,
+                |a| {
+                    i.checked_mul(self.depth)
+                        .map_or_else(|| None, |i_term| a.checked_add(i_term))
+                },
+            )
+            .map_or_else(|| None, |a| a.checked_add(k))
+            .map_or_else(|| None, |index| self.data.get(index))
     }
 
     /// Returns a mutable reference to the indexed element.
     pub fn get_mut(&mut self, i: usize, j: usize, k: usize) -> Option<&mut T> {
-        self.data
-            .get_mut(j * self.width * self.depth + i * self.depth + k)
+        j.checked_mul(self.width)
+            .map_or_else(|| None, |a| a.checked_mul(self.depth))
+            .map_or_else(
+                || None,
+                |a| {
+                    i.checked_mul(self.depth)
+                        .map_or_else(|| None, |i_term| a.checked_add(i_term))
+                },
+            )
+            .map_or_else(|| None, |a| a.checked_add(k))
+            .map_or_else(|| None, move |index| self.data.get_mut(index))
     }
 
     /// Consume the `Matrix3d` and return the underlying Vec.

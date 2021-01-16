@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -7,11 +5,11 @@ use structopt::StructOpt;
 pub struct Opt {
     /// Input file.
     #[structopt(short, long, parse(from_os_str))]
-    pub input: PathBuf,
+    pub input: std::path::PathBuf,
 
     /// Output file.
     #[structopt(short, long, parse(from_os_str))]
-    pub output: Option<PathBuf>,
+    pub output: Option<std::path::PathBuf>,
 
     /// Number of colors to dither.
     #[structopt(short, long, default_value = "8", required = false)]
@@ -60,7 +58,7 @@ pub struct Opt {
 
     /// Output file.
     #[structopt(long = "op", parse(from_os_str))]
-    pub palette_output: Option<PathBuf>,
+    pub palette_output: Option<std::path::PathBuf>,
 
     /// Filter size.
     #[structopt(long, default_value = "3", required = false, hidden = true)]

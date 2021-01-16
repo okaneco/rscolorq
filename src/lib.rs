@@ -86,9 +86,12 @@
 //!     .collect::<Vec<[u8; 3]>>();
 //!
 //! // Create the final image by color lookup from the palette
-//! quantized_image.iter().for_each(|&c| {
-//!     imgbuf.extend_from_slice(&*palette.get(c as usize).unwrap());
-//! });
+//! for &c in quantized_image.iter() {
+//!     let color = palette
+//!         .get(c as usize)
+//!         .ok_or("Could not retrieve color from palette")?;
+//!     imgbuf.extend_from_slice(color);
+//! }
 //!
 //! # Ok(())
 //! # }

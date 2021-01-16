@@ -22,7 +22,7 @@ fn try_main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("No output specified.".into());
     }
 
-    let img = image::open(opt.input)?.to_rgb();
+    let img = image::open(opt.input)?.to_rgb8();
     let (width, height) = (img.dimensions().0, img.dimensions().1);
 
     let dithering_level = if opt.dither <= 0.0 {
@@ -63,9 +63,9 @@ fn try_main() -> Result<(), Box<dyn std::error::Error>> {
             for c in &opt.colors {
                 let color = parse_color(c.trim_start_matches('#'))?;
                 color_vec.push(Rgb {
-                    red: color[0] as f64 / 255.0,
-                    green: color[1] as f64 / 255.0,
-                    blue: color[2] as f64 / 255.0,
+                    red: f64::from(color[0]) / 255.0,
+                    green: f64::from(color[1]) / 255.0,
+                    blue: f64::from(color[2]) / 255.0,
                 });
             }
             palette = Vec::with_capacity(color_vec.len());
@@ -91,9 +91,9 @@ fn try_main() -> Result<(), Box<dyn std::error::Error>> {
         let image = Matrix2d::from_vec(
             img.pixels()
                 .map(|&c| Rgb {
-                    red: c.0[0] as f64 / 255.0,
-                    green: c.0[1] as f64 / 255.0,
-                    blue: c.0[2] as f64 / 255.0,
+                    red: f64::from(c.0[0]) / 255.0,
+                    green: f64::from(c.0[1]) / 255.0,
+                    blue: f64::from(c.0[2]) / 255.0,
                 })
                 .collect(),
             width as usize,
@@ -126,9 +126,12 @@ fn try_main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Create the final image by color lookup from the palette
-        quantized_image.iter().for_each(|&c| {
-            imgbuf.extend_from_slice(&*palette.get(c as usize).unwrap());
-        });
+        for &c in quantized_image.iter() {
+            let color = palette
+                .get(c as usize)
+                .ok_or("Could not retrieve color from palette")?;
+            imgbuf.extend_from_slice(color);
+        }
     } else {
         // Set quantization parameters
         let mut conditions = Params::new();
@@ -198,9 +201,12 @@ fn try_main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Create the final image by color lookup from the palette
-        quantized_image.iter().for_each(|&c| {
-            imgbuf.extend_from_slice(Srgb::into_raw_slice(&[*palette.get(c as usize).unwrap()]));
-        });
+        for &c in quantized_image.iter() {
+            let color = *palette
+                .get(c as usize)
+                .ok_or("Could not retrieve color from palette")?;
+            imgbuf.extend_from_slice(Srgb::into_raw_slice(&[color]));
+        }
     }
 
     if let Some(title) = opt.output {
