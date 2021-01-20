@@ -1,5 +1,4 @@
 # rscolorq
-[![Build Status](https://travis-ci.com/okaneco/rscolorq.svg?branch=master)](https://travis-ci.com/okaneco/rscolorq)
 [![Crates.io](https://img.shields.io/crates/v/rscolorq.svg)](https://crates.io/crates/rscolorq)
 [![Docs.rs](https://docs.rs/rscolorq/badge.svg)](https://docs.rs/rscolorq)
 
@@ -34,6 +33,8 @@ default-features = false
 ```
 
 ## Examples
+
+*Images are best viewed at 100% magnification.*
 
 ### **1) Mandrill**
 
