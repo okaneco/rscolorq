@@ -210,11 +210,10 @@ where
         + core::ops::Sub<T, Output = T>
         + SpatialQuant,
 {
-    let mut rng = if let Some(seed) = conditions.seed {
-        rand_pcg::Pcg64Mcg::seed_from_u64(seed)
-    } else {
-        rand_pcg::Pcg64Mcg::from_entropy()
-    };
+    let mut rng = conditions.seed.map_or_else(
+        rand_pcg::Pcg64Mcg::from_entropy,
+        rand_pcg::Pcg64Mcg::seed_from_u64,
+    );
 
     // Initialize palette
     if conditions.palette.is_none() {
@@ -225,7 +224,7 @@ where
         conditions
             .palette
             .clone()
-            .unwrap()
+            .ok_or("Could not access conditions palette")?
             .iter()
             .for_each(|&a| palette.push(a));
     }
@@ -261,8 +260,20 @@ where
         let radius_width = filter_weights.width().saturating_sub(1) / 2;
         let radius_height = filter_weights.height().saturating_sub(1) / 2;
         let mut bi = Matrix2d::new(
-            (3).max(b_vec.last().unwrap().width().saturating_sub(2)),
-            (3).max(b_vec.last().unwrap().height().saturating_sub(2)),
+            (3).max(
+                b_vec
+                    .last()
+                    .ok_or("Could not get last in b_vec")?
+                    .width()
+                    .saturating_sub(2),
+            ),
+            (3).max(
+                b_vec
+                    .last()
+                    .ok_or("Could not get last in b_vec")?
+                    .height()
+                    .saturating_sub(2),
+            ),
         );
 
         for big_j_y in 0..bi.height() {
@@ -271,13 +282,16 @@ where
                     for i_x in (radius_width * 2)..(radius_width * 2 + 2) {
                         for j_y in (big_j_y * 2)..(big_j_y * 2 + 2) {
                             for j_x in (big_j_x * 2)..(big_j_x * 2 + 2) {
-                                *bi.get_mut(big_j_x, big_j_y).unwrap() += b_value(
-                                    b_vec.last().unwrap(),
-                                    i_x as isize,
-                                    i_y as isize,
-                                    j_x as isize,
-                                    j_y as isize,
-                                );
+                                *bi.get_mut(big_j_x, big_j_y).ok_or("Could not access bi")? +=
+                                    b_value(
+                                        b_vec
+                                            .last()
+                                            .ok_or("Could not calculate b_value with b_vec")?,
+                                        i_x as isize,
+                                        i_y as isize,
+                                        j_x as isize,
+                                        j_y as isize,
+                                    );
                             }
                         }
                     }
@@ -291,7 +305,12 @@ where
             image.width() >> coarse_level,
             image.height() >> coarse_level,
         );
-        sum_coarsen(a_vec.last().unwrap(), &mut ai);
+        sum_coarsen(
+            a_vec
+                .last()
+                .ok_or("Could not access a_vec for sum_coarsen")?,
+            &mut ai,
+        )?;
         a_vec.push(ai);
     }
 
@@ -306,14 +325,20 @@ where
     compute_initial_s(
         &mut s,
         &coarse_variables,
-        &b_vec.get(coarse_level as usize).unwrap(),
+        b_vec
+            .get(coarse_level as usize)
+            .ok_or("Could not access b_vec for computing s")?,
     )?;
     let mut j_palette_sum = Matrix2d::new(coarse_variables.width(), coarse_variables.height());
-    compute_initial_j_palette_sum(&mut j_palette_sum, &coarse_variables, &palette);
+    compute_initial_j_palette_sum(&mut j_palette_sum, &coarse_variables, &palette)?;
 
     while coarse_level >= 0 || temperature > conditions.final_temp {
-        let a = a_vec.get(coarse_level as usize).unwrap();
-        let b = b_vec.get(coarse_level as usize).unwrap();
+        let a = a_vec
+            .get(coarse_level as usize)
+            .ok_or("Could not access a_vec")?;
+        let b = b_vec
+            .get(coarse_level as usize)
+            .ok_or("Could not access b_vec")?;
         let middle_b = b_value(b, 0, 0, 0, 0);
         let center_x = (b.width().saturating_sub(1) / 2) as i32;
         let center_y = (b.height().saturating_sub(1) / 2) as i32;
@@ -343,7 +368,9 @@ where
                     );
                 }
 
-                let (i_x, i_y) = visit_queue.pop_front().unwrap();
+                let (i_x, i_y) = visit_queue
+                    .pop_front()
+                    .ok_or("Could not pop from visit queue")?;
 
                 // Compute (25)
                 let mut p_i = T::default();
@@ -365,12 +392,14 @@ where
                             b_value(&b, i_x as isize, i_y as isize, j_x as isize, j_y as isize);
                         let j_pal = *j_palette_sum
                             .get(j_x as usize, j_y as usize)
-                            .ok_or_else(|| "Could not retrieve from j_palette")?;
+                            .ok_or("Could not access j_palette_sum")?;
                         p_i += b_ij * j_pal;
                     }
                 }
                 p_i *= 2.0;
-                p_i += *a.get(i_x as usize, i_y as usize).unwrap();
+                if let Some(a) = a.get(i_x as usize, i_y as usize) {
+                    p_i += *a;
+                }
 
                 let mut meanfield_logs = Vec::new();
                 let mut meanfields = Vec::new();
@@ -380,25 +409,30 @@ where
                     // Update m_{pi(i)v}^I according to (23)
                     meanfield_logs
                         .push(-(v.dot_product(&(p_i + middle_b.direct_product(&v)))) / temperature);
-                    if *meanfield_logs.last().unwrap() > max_meanfield_log {
-                        max_meanfield_log = *meanfield_logs.last().unwrap();
+                    if let Some(meanfield_logs_last) = meanfield_logs.last() {
+                        if *meanfield_logs_last > max_meanfield_log {
+                            max_meanfield_log = *meanfield_logs_last;
+                        }
                     }
                 }
                 for v in meanfield_logs.iter().take(palette.len()) {
                     meanfields.push((v - max_meanfield_log + 100.0).exp());
-                    meanfield_sum += meanfields.last().unwrap();
+                    meanfield_sum += meanfields
+                        .last()
+                        .ok_or("Could not access last in meanfields")?;
                 }
 
                 if !meanfield_sum.is_normal() {
                     return Err(crate::QuantError::Quantization(String::from(
-                        "Meanfield sum underflowed.",
+                        "Meanfield sum underflowed",
                     )));
                 }
 
                 let old_max_v =
-                    best_match_color(&coarse_variables, i_x as usize, i_y as usize, palette);
+                    best_match_color(&coarse_variables, i_x as usize, i_y as usize, palette)?;
                 for (v, &palette_item) in palette.iter().enumerate() {
-                    let mut new_val = meanfields.get(v).unwrap() / meanfield_sum;
+                    let mut new_val =
+                        meanfields.get(v).ok_or("Could not access meanfields")? / meanfield_sum;
                     // Prevent S from becoming singular
                     if new_val <= 0.0 {
                         new_val = 1e-10;
@@ -406,12 +440,16 @@ where
                     if new_val >= 1.0 {
                         new_val = 1.0 - 1e-10;
                     }
-                    let delta_m_iv =
-                        new_val - coarse_variables.get(i_x as usize, i_y as usize, v).unwrap();
+                    let delta_m_iv = new_val
+                        - coarse_variables
+                            .get(i_x as usize, i_y as usize, v)
+                            .ok_or("Could not access coarse_variables for delta v")?;
                     *coarse_variables
                         .get_mut(i_x as usize, i_y as usize, v)
-                        .unwrap() = new_val;
-                    *j_palette_sum.get_mut(i_x as usize, i_y as usize).unwrap() +=
+                        .ok_or("Could not access coarse_variables for delta v")? = new_val;
+                    *j_palette_sum
+                        .get_mut(i_x as usize, i_y as usize)
+                        .ok_or("Could not access j_palette_sum for delta v")? +=
                         palette_item * delta_m_iv;
                     if delta_m_iv.abs() > 0.001 && !skip_palette_maintenance {
                         update_s(
@@ -427,12 +465,16 @@ where
                 }
 
                 let max_v =
-                    best_match_color(&coarse_variables, i_x as usize, i_y as usize, palette);
+                    best_match_color(&coarse_variables, i_x as usize, i_y as usize, palette)?;
                 // Color difference delta, determines if pixel has changed
                 if palette
                     .get(max_v)
-                    .unwrap()
-                    .color_difference(palette.get(old_max_v).unwrap())
+                    .ok_or("Could not access palette for max_v")?
+                    .color_difference(
+                        palette
+                            .get(old_max_v)
+                            .ok_or("Could not access palette for old_max_v")?,
+                    )
                     >= T::difference_threshold()
                 {
                     for y in (1).min(center_y - 1)
@@ -466,13 +508,15 @@ where
                 compute_initial_s(
                     &mut s,
                     &coarse_variables,
-                    &b_vec.get(coarse_level as usize).unwrap(),
+                    b_vec
+                        .get(coarse_level as usize)
+                        .ok_or("Could not access b_vec in skip maintenance")?,
                 )?;
             }
             if conditions.palette.is_none() {
                 T::refine_palette(&mut s, &coarse_variables, &a, palette)?;
             }
-            compute_initial_j_palette_sum(&mut j_palette_sum, &coarse_variables, &palette);
+            compute_initial_j_palette_sum(&mut j_palette_sum, &coarse_variables, &palette)?;
         }
 
         iters_at_current_level += 1;
@@ -493,7 +537,7 @@ where
             coarse_variables = new_coarse_variables;
             iters_at_current_level = 0;
             j_palette_sum = Matrix2d::new(coarse_variables.width(), coarse_variables.height());
-            compute_initial_j_palette_sum(&mut j_palette_sum, &coarse_variables, &palette);
+            compute_initial_j_palette_sum(&mut j_palette_sum, &coarse_variables, &palette)?;
             skip_palette_maintenance = true;
         }
 
@@ -515,8 +559,10 @@ where
 
     for i_y in 0..image.height() {
         for i_x in 0..image.width() {
-            *quantized_image.get_mut(i_x, i_y).unwrap() =
-                best_match_color(&coarse_variables, i_x, i_y, palette) as u8;
+            *quantized_image
+                .get_mut(i_x, i_y)
+                .ok_or("Could not access quantized image")? =
+                best_match_color(&coarse_variables, i_x, i_y, palette)? as u8;
         }
     }
 

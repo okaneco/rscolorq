@@ -1,9 +1,9 @@
 [package]
 name = "rscolorq"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["okaneco <47607823+okaneco@users.noreply.github.com>"]
 edition = "2018"
-exclude = ["test", "gfx"]
+exclude = ["test", "gfx", ".github"]
 description = "Spatial color quantization, a Rust port of `scolorq`."
 homepage = "https://github.com/okaneco/rscolorq"
 repository = "https://github.com/okaneco/rscolorq"

@@ -10,8 +10,9 @@ pub enum QuantError {
 impl std::fmt::Display for QuantError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            QuantError::Parameter(ref err) => write!(f, "{}", err),
-            QuantError::Quantization(ref err) => write!(f, "{}", err),
+            QuantError::Parameter(ref err) | QuantError::Quantization(ref err) => {
+                write!(f, "{}", err)
+            }
         }
     }
 }
@@ -19,8 +20,7 @@ impl std::fmt::Display for QuantError {
 impl std::error::Error for QuantError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            QuantError::Parameter(_) => None,
-            QuantError::Quantization(_) => None,
+            QuantError::Parameter(_) | QuantError::Quantization(_) => None,
         }
     }
 }

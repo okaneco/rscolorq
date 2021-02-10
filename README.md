@@ -1,4 +1,5 @@
 # rscolorq
+[![Build Status](https://img.shields.io/github/workflow/status/okaneco/rscolorq/Rust%20CI/master)](https://github.com/okaneco/rscolorq)
 [![Crates.io](https://img.shields.io/crates/v/rscolorq.svg)](https://crates.io/crates/rscolorq)
 [![Docs.rs](https://docs.rs/rscolorq/badge.svg)](https://docs.rs/rscolorq)
 
@@ -142,5 +143,9 @@ This crate is licensed under either
 - the [Apache License (Version 2.0)](LICENSE-APACHE)
 
 at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
 
 *Copyright of the original images is property of their respective owners.*

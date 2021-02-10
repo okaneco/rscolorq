@@ -62,16 +62,17 @@ where
                         && k_y + offset_y >= j_y - radius_height
                         && k_y + offset_y <= j_y + radius_height
                     {
-                        *b.get_mut(j_x as usize, j_y as usize).unwrap() += filter_weights
+                        *b.get_mut(j_x as usize, j_y as usize)
+                            .ok_or("Could not access b in to compute b array")? += filter_weights
                             .get(k_x as usize, k_y as usize)
-                            .unwrap()
+                            .ok_or("Could not access filter weights in compute b array")?
                             .direct_product(
                                 filter_weights
                                     .get(
                                         (k_x + offset_x - j_x + radius_width) as usize,
                                         (k_y + offset_y - j_y + radius_height) as usize,
                                     )
-                                    .ok_or_else(|| "Could not compute b array")?,
+                                    .ok_or("Could not compute b array")?,
                             );
                     }
                 }
@@ -122,27 +123,31 @@ where
                     }
 
                     if let Some(inner) = image.get(j_x, j_y) {
-                        *a.get_mut(i_x, i_y).unwrap() +=
+                        *a.get_mut(i_x, i_y)
+                            .ok_or("Could not access a to compute a image")? +=
                             b_value(b, i_x as isize, i_y as isize, j_x as isize, j_y as isize)
                                 .direct_product(inner);
                     }
                 }
             }
-            *a.get_mut(i_x, i_y).unwrap() *= -2.0;
+            *a.get_mut(i_x, i_y)
+                .ok_or("Could not access a to compute a image")? *= -2.0;
         }
     }
 
     Ok(())
 }
 
-pub fn sum_coarsen<T>(fine: &Matrix2d<T>, coarse: &mut Matrix2d<T>)
+pub fn sum_coarsen<T>(fine: &Matrix2d<T>, coarse: &mut Matrix2d<T>) -> Result<(), QuantError>
 where
     T: Clone + Default + Copy + core::ops::AddAssign<T> + core::ops::Mul<f64, Output = T>,
 {
     for y in 0..coarse.height() {
         for x in 0..coarse.width() {
             // coarse width and height should be at most half the fine matrix
-            let mut val = *fine.get(x * 2, y * 2).unwrap();
+            let mut val = *fine
+                .get(x * 2, y * 2)
+                .ok_or("Could not access fine in sum coarsen")?;
             // let mut divisor = 1.0f64;
 
             if let Some(v) = fine.get(x * 2 + 1, y * 2) {
@@ -158,16 +163,27 @@ where
                 // divisor += 1.0;
             }
 
-            *coarse.get_mut(x, y).unwrap() = val;
+            *coarse
+                .get_mut(x, y)
+                .ok_or("Could not access coarse in sum coarsen")? = val;
             // NOTE: Original code has divisor term commented out
-            // *coarse.get_mut(x, y).unwrap() = val * (divisor.recip());
+            // *coarse.get_mut(x, y).ok_or("") = val * (divisor.recip());
         }
     }
+
+    Ok(())
 }
 
-pub fn best_match_color<T>(vars: &Matrix3d<f64>, i_x: usize, i_y: usize, palette: &[T]) -> usize {
+pub fn best_match_color<T>(
+    vars: &Matrix3d<f64>,
+    i_x: usize,
+    i_y: usize,
+    palette: &[T],
+) -> Result<usize, QuantError> {
     let mut max_v = 0;
-    let mut max_weight = *vars.get(i_x, i_y, 0).unwrap();
+    let mut max_weight = *vars
+        .get(i_x, i_y, 0)
+        .ok_or("Could not compute best match color")?;
     for v in 1..palette.len() {
         if let Some(var) = vars.get(i_x, i_y, v) {
             if *var > max_weight {
@@ -177,7 +193,7 @@ pub fn best_match_color<T>(vars: &Matrix3d<f64>, i_x: usize, i_y: usize, palette
         }
     }
 
-    max_v
+    Ok(max_v)
 }
 
 pub fn zoom_double(small: &Matrix3d<f64>, big: &mut Matrix3d<f64>) -> Result<(), QuantError> {
@@ -207,44 +223,37 @@ pub fn zoom_double(small: &Matrix3d<f64>, big: &mut Matrix3d<f64>) -> Result<(),
 
             for z in 0..big.depth() {
                 if x_left == x_right && y_top == y_bottom {
-                    *big.get_mut(x, y, z).unwrap() = *small
-                        .get(x_left, y_top, z)
-                        .ok_or_else(|| "Could not zoom double")?;
+                    *big.get_mut(x, y, z).ok_or("Could not access big matrix")? =
+                        *small.get(x_left, y_top, z).ok_or("Could not zoom double")?;
                 } else if x_left == x_right {
-                    *big.get_mut(x, y, z).unwrap() = top_weight
-                        * *small
-                            .get(x_left, y_top, z)
-                            .ok_or_else(|| "Could not zoom double")?
+                    *big.get_mut(x, y, z).ok_or("Could not access big matrix")? = top_weight
+                        * *small.get(x_left, y_top, z).ok_or("Could not zoom double")?
                         + bottom_weight
                             * *small
                                 .get(x_left, y_bottom, z)
-                                .ok_or_else(|| "Could not zoom double")?;
+                                .ok_or("Could not zoom double")?;
                 } else if y_top == y_bottom {
-                    *big.get_mut(x, y, z).unwrap() = left_weight
-                        * *small
-                            .get(x_left, y_top, z)
-                            .ok_or_else(|| "Could not zoom double")?
+                    *big.get_mut(x, y, z).ok_or("Could not access big matrix")? = left_weight
+                        * *small.get(x_left, y_top, z).ok_or("Could not zoom double")?
                         + right_weight
                             * *small
                                 .get(x_right, y_top, z)
-                                .ok_or_else(|| "Could not zoom double")?;
+                                .ok_or("Could not zoom double")?;
                 } else {
-                    *big.get_mut(x, y, z).unwrap() = top_left_weight
-                        * *small
-                            .get(x_left, y_top, z)
-                            .ok_or_else(|| "Could not zoom double")?
+                    *big.get_mut(x, y, z).ok_or("Could not access big matrix")? = top_left_weight
+                        * *small.get(x_left, y_top, z).ok_or("Could not zoom double")?
                         + top_right_weight
                             * *small
                                 .get(x_right, y_top, z)
-                                .ok_or_else(|| "Could not zoom double")?
+                                .ok_or("Could not zoom double")?
                         + bottom_left_weight
                             * *small
                                 .get(x_left, y_bottom, z)
-                                .ok_or_else(|| "Could not zoom double")?
+                                .ok_or("Could not zoom double")?
                         + bottom_right_weight
                             * *small
                                 .get(x_right, y_bottom, z)
-                                .ok_or_else(|| "Could not zoom double")?;
+                                .ok_or("Could not zoom double")?;
                 }
             }
         }
@@ -269,7 +278,8 @@ where
     let center_b = b_value(&b, 0, 0, 0, 0);
     for v in 0..palette_size {
         for alpha in v..palette_size {
-            *s.get_mut(v, alpha).unwrap() = T::default();
+            *s.get_mut(v, alpha)
+                .ok_or("Could not access s to compute initial s")? = T::default();
         }
     }
 
@@ -288,20 +298,22 @@ where
                         for alpha in v..palette_size {
                             let mult = coarse_variables
                                 .get(i_x as usize, i_y as usize, v)
-                                .ok_or_else(|| "Could not compute initial s")?
-                                * coarse_variables
-                                    .get(j_x, j_y, alpha)
-                                    .ok_or_else(|| "Could not compute initial s")?;
-                            *s.get_mut(v, alpha).unwrap() += b_ij * mult;
+                                .ok_or("Could not compute initial s")?
+                                * coarse_variables.get(j_x, j_y, alpha).ok_or(
+                                    "Could not access coarse variables to compute initial s",
+                                )?;
+                            *s.get_mut(v, alpha)
+                                .ok_or("Could not access s to compute initial s")? += b_ij * mult;
                         }
                     }
                 }
             }
             for v in 0..palette_size {
-                *s.get_mut(v, v).unwrap() += center_b
+                *s.get_mut(v, v)
+                    .ok_or("Could not access s to compute initial s")? += center_b
                     * *coarse_variables
                         .get(i_x as usize, i_y as usize, v)
-                        .ok_or_else(|| "Could not compute initial s")?;
+                        .ok_or("Could not access coarse variables to compute initial s")?;
             }
         }
     }
@@ -338,18 +350,21 @@ where
             for v in 0..=alpha {
                 let mult = *coarse_variables
                     .get(i_x, i_y, v)
-                    .ok_or_else(|| "Could not update s")?;
-                *s.get_mut(v, alpha).unwrap() += delta_b_ij * mult;
+                    .ok_or("Could not access coarse variables to update s")?;
+                *s.get_mut(v, alpha)
+                    .ok_or("Could not access s to update s")? += delta_b_ij * mult;
             }
             for v in alpha..palette_size {
                 let mult = *coarse_variables
                     .get(i_x, i_y, v)
-                    .ok_or_else(|| "Could not update s")?;
-                *s.get_mut(alpha, v).unwrap() += delta_b_ij * mult;
+                    .ok_or("Could not access coarse variables to update s")?;
+                *s.get_mut(alpha, v)
+                    .ok_or("Could not access s to update s")? += delta_b_ij * mult;
             }
         }
     }
-    *s.get_mut(alpha, alpha).unwrap() += b_value(b, 0, 0, 0, 0) * delta;
+    *s.get_mut(alpha, alpha)
+        .ok_or("Could not access s to update s")? += b_value(b, 0, 0, 0, 0) * delta;
 
     Ok(())
 }
@@ -358,16 +373,24 @@ pub fn compute_initial_j_palette_sum<T>(
     j_palette_sum: &mut Matrix2d<T>,
     coarse_variables: &Matrix3d<f64>,
     palette: &[T],
-) where
+) -> Result<(), QuantError>
+where
     T: Clone + Default + Copy + core::ops::AddAssign<T> + core::ops::Mul<f64, Output = T>,
 {
     for j_y in 0..coarse_variables.height() {
         for j_x in 0..coarse_variables.width() {
             let mut palette_sum = T::default();
             for (alpha, &item) in palette.iter().enumerate() {
-                palette_sum += item * *coarse_variables.get(j_x, j_y, alpha).unwrap();
+                palette_sum += item
+                    * *coarse_variables
+                        .get(j_x, j_y, alpha)
+                        .ok_or("Could not access coarse variables in j palette sum")?;
             }
-            *j_palette_sum.get_mut(j_x, j_y).unwrap() = palette_sum;
+            *j_palette_sum
+                .get_mut(j_x, j_y)
+                .ok_or("Could not access j palette sum")? = palette_sum;
         }
     }
+
+    Ok(())
 }
