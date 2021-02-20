@@ -1,7 +1,12 @@
 # `rscolorq` changelog
 
-## Version 0.1.2 - 2021-01-xx
-[#6][6] -  Add checked usize arithmetic for Matrix indexing, make clippy fixes
+## Version 0.1.2 - 2021-02-20
+Previous behavior relied on wrapping overflow in some places which could panic
+in debug mode. This behavior has been changed to use checked arithmetic
+operations. The algorithm results will differ slightly from the previous
+version.
+
+[#6][6] -  Add checked usize arithmetic for Matrix indexing, make clippy fixes  
 [#5][5] -  Add safe wrapping usize arithmetic for Matrix2d indexing
 
 ## Version 0.1.1 - 2020-11-16
