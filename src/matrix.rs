@@ -73,16 +73,26 @@ impl<T: Clone + Default> Matrix2d<T> {
     pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, T> {
         self.data.iter_mut()
     }
+
+    /// Returns an iterator over the rows of the `Matrix2d`.
+    pub fn rows(&self) -> core::slice::ChunksExact<'_, T> {
+        self.data.chunks_exact(self.width)
+    }
+
+    /// Returns a mutable iterator over the rows of the `Matrix2d`.
+    pub fn rows_mut(&mut self) -> core::slice::ChunksExactMut<'_, T> {
+        self.data.chunks_exact_mut(self.width)
+    }
 }
 
 impl<T: Clone + Default + Copy + core::ops::MulAssign<T>> Matrix2d<T> {
     /// Multiply a row in the matrix by a scalar value.
     pub fn multiply_row_by_scalar(&mut self, row: usize, factor: T) -> Result<(), QuantError> {
-        for i in 0..self.width {
-            *self
-                .get_mut(i, row)
-                .ok_or("Could not multiply row by scalar")? *= factor;
-        }
+        self.rows_mut()
+            .nth(row)
+            .ok_or("Could not multiply row by scalar")?
+            .iter_mut()
+            .for_each(|i| *i *= factor);
 
         Ok(())
     }
@@ -99,14 +109,87 @@ where
         to_row: usize,
         factor: T,
     ) -> Result<(), QuantError> {
-        for i in 0..self.width {
-            let from_item = *self
-                .get(i, from_row)
-                .ok_or("Index out of range in add_row_multiply")?
-                * factor;
-            *self
-                .get_mut(i, to_row)
-                .ok_or("Index out of range in add_row_multiply")? += from_item;
+        /*
+        To iterate over the Vec and mutate it, we have to use split_at_mut.
+        Whichever row is smaller will be the last row in the left slice from
+        split_at_mut.
+
+        Sample matrix:
+        2 2 2
+        1 1 1
+        0 0 0
+        3 3 3
+        4 4 4
+
+        Less case (from_row < to_row):
+            from 1 to 3 midpoint calculation:
+            (from_row + 1) * self.width =>
+                (1 + 1) * 3 = 6 // add 1 for start of the next row
+            [2 2 2 1 1 1], [0 0 0 3 3 3 4 4 4]
+
+            from_row_chunk_index = last chunk in split_left
+
+            to_row - from_row =>
+                3 - 1 = 2 as the new slice chunk index 1 beyond our target
+            to_index_chunk_index for split_right =>
+                2 - 1 = 1 as the nth chunk index we want for [3 3 3]
+            therefore:
+                nth(to_row - from_row - 1)
+            [[0 0 0] [3 3 3] [4 4 4]]
+
+        Greater case (from_row > to_row):
+            from_row = nth(from_row - to_row - 1) chunk in split_right
+            to_row = last chunk in split_left
+        */
+
+        match from_row.cmp(&to_row) {
+            core::cmp::Ordering::Less => {
+                let mid = from_row
+                    .checked_add(1)
+                    .ok_or("Index out of bounds in add add_row_multiple")?
+                    .checked_mul(self.width)
+                    .ok_or("Index out of bounds in mul add_row_multiple")?;
+
+                let (split_left, split_right) = self.data.split_at_mut(mid);
+
+                let from_row_chunk = split_left
+                    .chunks_exact(self.width)
+                    .last()
+                    .ok_or("Could not split from slice in add_row_multiple")?;
+
+                let to_row_chunk = split_right
+                    .chunks_exact_mut(self.width)
+                    .nth(to_row - from_row - 1)
+                    .ok_or("Could not split to slice in add_row_multiple")?;
+
+                for (to, from) in to_row_chunk.iter_mut().zip(from_row_chunk) {
+                    *to += *from * factor;
+                }
+            }
+            core::cmp::Ordering::Greater => {
+                let mid = to_row
+                    .checked_add(1)
+                    .ok_or("Index out of bounds in add add_row_multiple")?
+                    .checked_mul(self.width)
+                    .ok_or("Index out of bounds in mul add_row_multiple")?;
+
+                let (split_left, split_right) = self.data.split_at_mut(mid);
+
+                let from_row_chunk = split_right
+                    .chunks_exact(self.width)
+                    .nth(from_row - to_row - 1)
+                    .ok_or("Could not split from slice in add_row_multiple")?;
+
+                let to_row_chunk = split_left
+                    .chunks_exact_mut(self.width)
+                    .last()
+                    .ok_or("Could not split to slice in add_row_multiple")?;
+
+                for (to, from) in to_row_chunk.iter_mut().zip(from_row_chunk) {
+                    *to += *from * factor;
+                }
+            }
+            core::cmp::Ordering::Equal => return Err("From and to rows cannot be equal".into()),
         }
 
         Ok(())
@@ -189,20 +272,16 @@ where
     fn mul(self, other: Vec<T>) -> Self::Output {
         assert!(other.len() == self.width());
 
-        let mut result = Vec::with_capacity(self.height());
-
-        for row in 0..self.height() {
-            let mut sum = T::default();
-            for col in 0..self.width() {
-                sum += *self
-                    .get(col, row)
-                    .expect("valid access for row and col in Matrix2d")
-                    * *other.get(col).expect("index in range for other");
-            }
-            result.push(sum);
-        }
-
-        result
+        self.rows()
+            .map(|row| {
+                row.iter()
+                    .zip(&other)
+                    .fold(T::default(), |mut sum, (&col, &other_entry)| {
+                        sum += col * other_entry;
+                        sum
+                    })
+            })
+            .collect()
     }
 }
 

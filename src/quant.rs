@@ -256,7 +256,7 @@ where
     a_vec.push(a0);
     b_vec.push(b0);
 
-    for coarse_level in 1..=max_coarse_level {
+    for coarse_level in 1..max_coarse_level + 1 {
         let radius_width = filter_weights.width().saturating_sub(1) / 2;
         let radius_height = filter_weights.height().saturating_sub(1) / 2;
         let mut bi = Matrix2d::new(
@@ -276,22 +276,21 @@ where
             ),
         );
 
-        for big_j_y in 0..bi.height() {
-            for big_j_x in 0..bi.width() {
+        for (big_j_y, bi_chunk) in bi.rows_mut().enumerate() {
+            for (big_j_x, bi_entry) in bi_chunk.iter_mut().enumerate() {
                 for i_y in (radius_height * 2)..(radius_height * 2 + 2) {
                     for i_x in (radius_width * 2)..(radius_width * 2 + 2) {
                         for j_y in (big_j_y * 2)..(big_j_y * 2 + 2) {
                             for j_x in (big_j_x * 2)..(big_j_x * 2 + 2) {
-                                *bi.get_mut(big_j_x, big_j_y).ok_or("Could not access bi")? +=
-                                    b_value(
-                                        b_vec
-                                            .last()
-                                            .ok_or("Could not calculate b_value with b_vec")?,
-                                        i_x as isize,
-                                        i_y as isize,
-                                        j_x as isize,
-                                        j_y as isize,
-                                    );
+                                *bi_entry += b_value(
+                                    b_vec
+                                        .last()
+                                        .ok_or("Could not calculate b_value with b_vec")?,
+                                    i_x as isize,
+                                    i_y as isize,
+                                    j_x as isize,
+                                    j_y as isize,
+                                );
                             }
                         }
                     }
@@ -557,12 +556,9 @@ where
         coarse_variables = new_coarse_variables;
     }
 
-    for i_y in 0..image.height() {
-        for i_x in 0..image.width() {
-            *quantized_image
-                .get_mut(i_x, i_y)
-                .ok_or("Could not access quantized image")? =
-                best_match_color(&coarse_variables, i_x, i_y, palette)? as u8;
+    for (i_y, quantized_chunk) in quantized_image.rows_mut().enumerate() {
+        for (i_x, quantized_entry) in quantized_chunk.iter_mut().enumerate() {
+            *quantized_entry = best_match_color(&coarse_variables, i_x, i_y, palette)? as u8;
         }
     }
 

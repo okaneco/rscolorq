@@ -24,6 +24,10 @@ pub struct Opt {
     #[structopt(long)]
     pub auto: bool,
 
+    /// Disable saving a dithered image.
+    #[structopt(long)]
+    pub no_file: bool,
+
     /// Dither the image with supplied colors.
     #[structopt(
         short,
