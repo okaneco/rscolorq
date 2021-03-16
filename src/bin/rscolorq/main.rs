@@ -18,7 +18,7 @@ fn main() {
 fn try_main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = args::Opt::from_args();
 
-    if opt.output.is_none() && opt.palette_output.is_none() && !opt.print {
+    if opt.output.is_none() && opt.palette_output.is_none() && !opt.print && !opt.no_file {
         return Err("No output specified.".into());
     }
 
@@ -209,8 +209,10 @@ fn try_main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if let Some(title) = opt.output {
-        save_image(&title, &imgbuf, width, height)?;
+    if !opt.no_file {
+        if let Some(title) = opt.output {
+            save_image(&title, &imgbuf, width, height)?;
+        }
     }
 
     Ok(())

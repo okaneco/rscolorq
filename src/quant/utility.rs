@@ -51,29 +51,27 @@ where
     let offset_x = (b.width() as isize - 1) / 2 - radius_width;
     let offset_y = (b.height() as isize - 1) / 2 - radius_height;
 
-    for j_y in 0isize..(b.height() as isize) {
-        for j_x in 0isize..(b.width() as isize) {
-            for k_y in 0isize..(filter_weights.height() as isize) {
-                for k_x in 0isize..(filter_weights.width() as isize) {
-                    if k_x + offset_x >= j_x - radius_width
-                        && k_x + offset_x <= j_x + radius_width
-                        // Original has the following as radius_width which seems
-                        // to be an error however the filter width and height are equal
-                        && k_y + offset_y >= j_y - radius_height
-                        && k_y + offset_y <= j_y + radius_height
+    for (j_y, b_chunk) in b.rows_mut().enumerate() {
+        for (j_x, b_entry) in b_chunk.iter_mut().enumerate() {
+            for (k_y, fw_chunk) in filter_weights.rows().enumerate() {
+                for (k_x, fw_entry) in fw_chunk.iter().enumerate() {
+                    if k_x as isize + offset_x >= j_x as isize - radius_width
+                    && k_x as isize + offset_x <= j_x as isize + radius_width
+                    // Original has the following as radius_width which seems
+                    // to be an error however the filter width and height are equal
+                    && k_y as isize + offset_y >= j_y as isize - radius_height
+                    && k_y as isize + offset_y <= j_y as isize + radius_height
                     {
-                        *b.get_mut(j_x as usize, j_y as usize)
-                            .ok_or("Could not access b in to compute b array")? += filter_weights
-                            .get(k_x as usize, k_y as usize)
-                            .ok_or("Could not access filter weights in compute b array")?
-                            .direct_product(
-                                filter_weights
-                                    .get(
-                                        (k_x + offset_x - j_x + radius_width) as usize,
-                                        (k_y + offset_y - j_y + radius_height) as usize,
-                                    )
-                                    .ok_or("Could not compute b array")?,
-                            );
+                        *b_entry += fw_entry.direct_product(
+                            filter_weights
+                                .get(
+                                    (k_x as isize + offset_x - j_x as isize + radius_width)
+                                        as usize,
+                                    (k_y as isize + offset_y - j_y as isize + radius_height)
+                                        as usize,
+                                )
+                                .ok_or("Could not compute b array")?,
+                        );
                     }
                 }
             }
@@ -92,11 +90,7 @@ where
     let k_x = j_x - i_x + radius_width as isize;
     let k_y = j_y - i_y + radius_height as isize;
 
-    if let Some(val) = b.get(k_x as usize, k_y as usize) {
-        *val
-    } else {
-        T::default()
-    }
+    *b.get(k_x as usize, k_y as usize).unwrap_or(&T::default())
 }
 
 pub fn compute_a_image<T>(
@@ -109,29 +103,29 @@ where
 {
     let radius_width = b.width().saturating_sub(1) / 2;
     let radius_height = b.height().saturating_sub(1) / 2;
+    let a_width = a.width();
+    let a_height = a.height();
 
-    for i_y in 0..a.height() {
-        for i_x in 0..a.width() {
+    for (i_y, a_chunk) in a.rows_mut().enumerate() {
+        for (i_x, a_entry) in a_chunk.iter_mut().enumerate() {
             for j_y in i_y.saturating_sub(radius_height)..=(i_y + radius_height) {
-                if j_y >= a.height() {
+                if j_y >= a_height {
                     break;
                 }
 
                 for j_x in (i_x.saturating_sub(radius_width))..=(i_x + radius_width) {
-                    if j_x >= a.width() {
+                    if j_x >= a_width {
                         break;
                     }
 
                     if let Some(inner) = image.get(j_x, j_y) {
-                        *a.get_mut(i_x, i_y)
-                            .ok_or("Could not access a to compute a image")? +=
+                        *a_entry +=
                             b_value(b, i_x as isize, i_y as isize, j_x as isize, j_y as isize)
                                 .direct_product(inner);
                     }
                 }
             }
-            *a.get_mut(i_x, i_y)
-                .ok_or("Could not access a to compute a image")? *= -2.0;
+            *a_entry *= -2.0;
         }
     }
 
@@ -142,8 +136,8 @@ pub fn sum_coarsen<T>(fine: &Matrix2d<T>, coarse: &mut Matrix2d<T>) -> Result<()
 where
     T: Clone + Default + Copy + core::ops::AddAssign<T> + core::ops::Mul<f64, Output = T>,
 {
-    for y in 0..coarse.height() {
-        for x in 0..coarse.width() {
+    for (y, coarse_chunk) in coarse.rows_mut().enumerate() {
+        for (x, coarse_entry) in coarse_chunk.iter_mut().enumerate() {
             // coarse width and height should be at most half the fine matrix
             let mut val = *fine
                 .get(x * 2, y * 2)
@@ -163,14 +157,11 @@ where
                 // divisor += 1.0;
             }
 
-            *coarse
-                .get_mut(x, y)
-                .ok_or("Could not access coarse in sum coarsen")? = val;
+            *coarse_entry = val;
             // NOTE: Original code has divisor term commented out
             // *coarse.get_mut(x, y).ok_or("") = val * (divisor.recip());
         }
     }
-
     Ok(())
 }
 
@@ -377,8 +368,8 @@ pub fn compute_initial_j_palette_sum<T>(
 where
     T: Clone + Default + Copy + core::ops::AddAssign<T> + core::ops::Mul<f64, Output = T>,
 {
-    for j_y in 0..coarse_variables.height() {
-        for j_x in 0..coarse_variables.width() {
+    for (j_y, j_palette_chunk) in j_palette_sum.rows_mut().enumerate() {
+        for (j_x, j_palette_entry) in j_palette_chunk.iter_mut().enumerate() {
             let mut palette_sum = T::default();
             for (alpha, &item) in palette.iter().enumerate() {
                 palette_sum += item
@@ -386,9 +377,8 @@ where
                         .get(j_x, j_y, alpha)
                         .ok_or("Could not access coarse variables in j palette sum")?;
             }
-            *j_palette_sum
-                .get_mut(j_x, j_y)
-                .ok_or("Could not access j palette sum")? = palette_sum;
+
+            *j_palette_entry = palette_sum;
         }
     }
 

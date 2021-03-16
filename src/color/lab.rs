@@ -10,15 +10,13 @@ impl SpatialQuant for Lab<D65, f64> {
             FilterSize::One => Matrix2d::from_vec(vec![Self::one()], 1, 1),
             FilterSize::Three => {
                 let mut filter_weights = Matrix2d::new(3, 3);
-                for i in 0i8..3i8 {
-                    for j in 0i8..3i8 {
-                        let val = (-f64::from((i - 1) * (i - 1) + (j - 1) * (j - 1)).sqrt()
+                for (j, fw_chunk) in filter_weights.rows_mut().enumerate() {
+                    for (i, fw_entry) in fw_chunk.iter_mut().enumerate() {
+                        let val = (-f64::from(i as i8 - 1).hypot(f64::from(j as i8 - 1))
                             / dithering_level.powi(2))
                         .exp();
                         sum += val;
-                        *filter_weights
-                            .get_mut(i as usize, j as usize)
-                            .expect("filter weights index in range") = Lab::new(val, val, val);
+                        *fw_entry = Self::new(val, val, val);
                     }
                 }
                 filter_weights.iter_mut().for_each(|fw| *fw /= sum);
@@ -26,15 +24,13 @@ impl SpatialQuant for Lab<D65, f64> {
             }
             FilterSize::Five => {
                 let mut filter_weights = Matrix2d::new(5, 5);
-                for i in 0i8..5i8 {
-                    for j in 0i8..5i8 {
-                        let val = (-f64::from((i - 2) * (i - 2) + (j - 2) * (j - 2)).sqrt()
+                for (j, fw_chunk) in filter_weights.rows_mut().enumerate() {
+                    for (i, fw_entry) in fw_chunk.iter_mut().enumerate() {
+                        let val = (-f64::from(i as i8 - 2).hypot(f64::from(j as i8 - 2))
                             / dithering_level.powi(2))
                         .exp();
                         sum += val;
-                        *filter_weights
-                            .get_mut(i as usize, j as usize)
-                            .expect("filter weights index in range") = Self::new(val, val, val);
+                        *fw_entry = Self::new(val, val, val);
                     }
                 }
                 filter_weights.iter_mut().for_each(|fw| *fw /= sum);
@@ -99,11 +95,9 @@ impl SpatialQuant for Lab<D65, f64> {
 
         let mut r: Vec<Self> = (0..palette.len()).map(|_| Self::default()).collect();
         for (v, r_item) in r.iter_mut().enumerate().take(palette.len()) {
-            for i_y in 0..coarse_variables.height() {
-                for i_x in 0..coarse_variables.width() {
-                    *r_item += *a
-                        .get(i_x, i_y)
-                        .ok_or("Could not access a-matrix in refine palette")?
+            for (i_y, a_chunk) in a.rows().enumerate() {
+                for (i_x, &a_entry) in a_chunk.iter().enumerate() {
+                    *r_item += a_entry
                         * *coarse_variables
                             .get(i_x, i_y, v)
                             .ok_or("Could not access coarse variables to refine palette")?;
