@@ -65,7 +65,7 @@ pub fn print_colors_lab(colors: &[palette::Srgb<u8>]) -> Result<(), Box<dyn std:
 
 /// Saves image buffer to file.
 pub fn save_image(
-    output: &std::path::PathBuf,
+    output: &std::path::Path,
     imgbuf: &[u8],
     width: u32,
     height: u32,
@@ -94,7 +94,7 @@ pub fn save_palette(
     res: &[[u8; 3]],
     height: u32,
     width: Option<u32>,
-    title: &std::path::PathBuf,
+    title: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let len = res.len() as u32;
     let w = match width {
@@ -123,7 +123,7 @@ pub fn save_palette(
         *pixel = image::Rgb(color);
     }
 
-    Ok(save_image(title, &imgbuf.to_vec(), w, height)?)
+    save_image(title, &imgbuf.to_vec(), w, height)
 }
 
 /// Save palette image file.
@@ -131,7 +131,7 @@ pub fn save_palette_lab(
     res: &[palette::Srgb<u8>],
     height: u32,
     width: Option<u32>,
-    title: &std::path::PathBuf,
+    title: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let len = res.len() as u32;
     let w = match width {
@@ -160,5 +160,5 @@ pub fn save_palette_lab(
         *pixel = image::Rgb([color.red, color.green, color.blue]);
     }
 
-    Ok(save_image(title, &imgbuf.to_vec(), w, height)?)
+    save_image(title, &imgbuf.to_vec(), w, height)
 }

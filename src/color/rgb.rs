@@ -207,9 +207,9 @@ impl SpatialQuant for Rgb {
 
     fn random(rng: &mut impl rand::Rng) -> Self {
         Self {
-            red: rng.gen_range(0.0, 1.0),
-            green: rng.gen_range(0.0, 1.0),
-            blue: rng.gen_range(0.0, 1.0),
+            red: rng.gen_range(0.0..=1.0),
+            green: rng.gen_range(0.0..=1.0),
+            blue: rng.gen_range(0.0..=1.0),
         }
     }
 

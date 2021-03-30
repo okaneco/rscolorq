@@ -72,9 +72,9 @@ impl SpatialQuant for Lab<D65, f64> {
 
     fn random(rng: &mut impl rand::Rng) -> Self {
         Self {
-            l: rng.gen_range(0.0, 100.0),
-            a: rng.gen_range(-128.0, 127.0),
-            b: rng.gen_range(-128.0, 127.0),
+            l: rng.gen_range(0.0..=100.0),
+            a: rng.gen_range(-128.0..=127.0),
+            b: rng.gen_range(-128.0..=127.0),
             white_point: PhantomData,
         }
     }
