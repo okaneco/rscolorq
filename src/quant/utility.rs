@@ -19,7 +19,7 @@ pub fn compute_max_coarse_level(mut width: usize, mut height: usize) -> usize {
 /// Fill a matrix with random f64 from 0 to 1.
 pub fn fill_random(arr: &mut Matrix3d<f64>, rng: &mut impl rand::Rng) {
     arr.iter_mut().for_each(|a| {
-        *a = rng.gen_range(0.0, 1.0);
+        *a = rng.gen_range(0.0..=1.0);
     });
 }
 

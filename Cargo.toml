@@ -1,6 +1,6 @@
 [package]
 name = "rscolorq"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["okaneco <47607823+okaneco@users.noreply.github.com>"]
 edition = "2018"
 exclude = ["test", "gfx", ".github"]
@@ -37,12 +37,12 @@ features = ["std"]
 optional = true
 
 [dependencies.rand]
-version = "0.7"
+version = "0.8"
 default-features = false
 features = ["std"]
 
 [dependencies.rand_pcg]
-version = "0.2"
+version = "0.3"
 default-features = false
 
 [dependencies.structopt]

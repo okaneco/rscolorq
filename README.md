@@ -25,11 +25,13 @@ mix as an average illusory color in the human eye.
 [Pointillism]: https://en.wikipedia.org/wiki/Pointillism#Gallery
 
 To use as a library, add the following to your `Cargo.toml`; add the
-`palette_color` feature to enable Lab color quantization.
+`palette_color` feature to enable Lab color quantization. Executable builds can
+be found at https://github.com/okaneco/rscolorq/releases.
+
 
 ```toml
 [dependencies.rscolorq]
-version = "0.1"
+version = "0.2"
 default-features = false
 ```
 
